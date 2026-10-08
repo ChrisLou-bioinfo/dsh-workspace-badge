@@ -1,0 +1,36 @@
+{
+  "name": "dsh-workspace-badge",
+  "version": "1.0.0",
+  "description": "Show the workspace (project folder) on each session row in the flat, recency-sorted sidebar list",
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChrisLou-bioinfo/dsh-workspace-badge.git"
+  },
+  "homepage": "https://github.com/ChrisLou-bioinfo/dsh-workspace-badge#readme",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "workspace",
+    "sidebar",
+    "session-list"
+  ],
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-ui-slots"]
+    }
+  }
+}
