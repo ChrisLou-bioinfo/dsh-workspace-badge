@@ -15,6 +15,9 @@
 window.__ModuleLoader__.load({
 	id: "dsh-workspace-badge",
 	factory: (require) => {
+		var module = { exports: {} };
+		var exports = module.exports;
+
 		const React = require("react");
 		const h = React.createElement;
 
