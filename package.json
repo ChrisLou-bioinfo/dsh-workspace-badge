@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-badge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Show the workspace (project folder) on each session row in the flat, recency-sorted sidebar list",
   "type": "module",
   "main": "./index.mjs",

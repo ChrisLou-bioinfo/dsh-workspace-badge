@@ -166,12 +166,95 @@ window.__ModuleLoader__.load({
 			}, cwd);
 		}
 
+		// ── 运行中工作区自动置顶 ───────────────────────────────────────────────
+		// 官方行为：分组顺序 = 工作区注册表的持久顺序（可拖拽），「最近更新」只排
+		// 组内会话，组顺序不动。这里用官方 insertBefore 命令实现「有运行中会话的
+		// 工作区浮到最前」：按各工作区运行中会话的最新 updatedAt 降序构成期望前缀，
+		// 与当前前缀不一致时逐个移动到最前。收敛判断在前，自身移动引发的快照
+		// 通知不会导致循环；800ms 防抖。会话停止后不自动复位（用户可拖拽调整）。
+		function floatRunningWorkspaces(ctx) {
+			let disposed = false;
+			let scheduled = false;
+			let applying = false;
+
+			function sync() {
+				scheduled = false;
+				if (disposed || applying) return;
+				let sessions;
+				let workspaces;
+				try {
+					sessions = ctx.sessions?.list?.getSnapshot?.();
+					workspaces = ctx.workspaces?.list?.getSnapshot?.();
+				} catch {
+					return;
+				}
+				if (!sessions || !workspaces || !Array.isArray(workspaces.items)) return;
+				const running = new Set();
+				for (const id of sessions.ids ?? []) {
+					const s = sessions.byId?.[id];
+					if (s && s.running === true) running.add(id);
+				}
+				if (running.size === 0) return;
+				const items = workspaces.items;
+				const hot = [];
+				for (const w of items) {
+					let latest = 0;
+					let has = false;
+					for (const sid of w.sessionIds ?? []) {
+						if (!running.has(sid)) continue;
+						has = true;
+						const u = sessions.byId?.[sid]?.updatedAt ?? 0;
+						if (u > latest) latest = u;
+					}
+					if (has) hot.push({ id: w.workspaceId, latest });
+				}
+				if (hot.length === 0) return;
+				hot.sort((a, b) => b.latest - a.latest);
+				const desiredPrefix = hot.map((entry) => entry.id);
+				const currentPrefix = items.slice(0, desiredPrefix.length).map((w) => w.workspaceId);
+				if (desiredPrefix.every((id, i) => currentPrefix[i] === id)) return;
+				applying = true;
+				(async () => {
+					try {
+						for (let i = desiredPrefix.length - 1; i >= 0; i--) {
+							const snap = ctx.workspaces.list.getSnapshot();
+							const first = snap.items?.[0]?.workspaceId;
+							if (first === undefined) break;
+							if (first === desiredPrefix[i]) continue;
+							await ctx.workspaces.insertBefore(desiredPrefix[i], first);
+						}
+					} catch (error) {
+						console.warn("[dsh-workspace-badge] float running workspaces failed", error);
+					} finally {
+						applying = false;
+					}
+				})();
+			}
+
+			function schedule() {
+				if (scheduled || disposed) return;
+				scheduled = true;
+				setTimeout(sync, 800);
+			}
+
+			const unsubs = [];
+			try { unsubs.push(ctx.sessions?.list?.subscribe?.(schedule)); } catch {}
+			try { unsubs.push(ctx.workspaces?.list?.subscribe?.(schedule)); } catch {}
+			schedule();
+			return () => {
+				disposed = true;
+				for (const u of unsubs) try { u && u(); } catch {}
+			};
+		}
+
 		let hoverSessions = null;
 
 		function apply(ctx) {
 			hoverSessions = ctx.sessions;
 			if (ctx.effect) ctx.effect(() => applyBadge(ctx), "dsh-workspace-badge: session row badge");
 			else applyBadge(ctx);
+			if (ctx.effect) ctx.effect(() => floatRunningWorkspaces(ctx), "dsh-workspace-badge: float running workspaces");
+			else floatRunningWorkspaces(ctx);
 			try {
 				ctx.slots?.inject?.("sidebar.session.row.hover", () => ctx.slots.register({
 					name: "sidebar.session.row.hover",
@@ -184,7 +267,7 @@ window.__ModuleLoader__.load({
 		}
 
 		exports.apply = apply;
-		exports.inject = ["slots", "sessions"];
+		exports.inject = ["slots", "sessions", "workspaces"];
 		return module.exports;
 	},
 });

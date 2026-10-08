@@ -11,6 +11,10 @@ recency-sorted sidebar list of DeepSeek Harness. Sorting is untouched.
 
 - flat 模式：`标题 [工作区] 3分钟前` —— 每行常显工作区名（cwd basename）
 - 分组模式（按工作区 / 工作区树）：自动不注入（行上已有分组头）
+- **运行中的工作区自动置顶**：分组顺序官方只跟随手动拖拽的注册表顺序（「最近更新」只排
+  组内会话）；本插件监听会话运行状态，把含运行中会话的工作区通过官方 `insertBefore`
+  命令浮到最前（多个时按其运行中会话的最新活动时间排序）。会话停止后不自动复位，
+  可随时拖拽调整。
 - 悬停卡片兜底：通过官方 `sidebar.session.row.hover` 槽位显示完整工作区路径
 
 ## 安装
